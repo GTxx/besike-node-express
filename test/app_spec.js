@@ -29,3 +29,15 @@ describe('Implement Empty App', function(){
     })
   })
 });
+
+describe('Implement app.use', function(){
+  var app = express();
+
+  it("should be able to add middlewares to stack", function(){
+    var m1 = function(){};
+    var m2 = function(){};
+    app.use(m1);
+    app.use(m2);
+    expect(app.stack).to.be.eql([m1, m2])
+  })
+})
