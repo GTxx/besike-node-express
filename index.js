@@ -26,10 +26,13 @@ function myexpress(){
       return next;
     }
 
-    var next = createNext();
-    next();
-    //res.writeHead(404)
-    //res.end('Not Found');
+    if (arguments.length == 2) {
+      var next = createNext();
+      next();
+    } else if (arguments.length == 3){
+      // call subapp
+
+    }
   }
 
   app.listen = function(){
@@ -59,6 +62,9 @@ function myexpress(){
       error_stack[error_stack.length-1] = func
       error_stack.push(default_error_handler)
     }
+
+    // support chain call, like app.use(fn1).use(fn2)...
+    return this;
   }
 
   return app;
