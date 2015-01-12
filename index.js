@@ -1,38 +1,54 @@
 var http = require('http');
 
+
 function myexpress(){
 
-  function app(req, res){
-    function createNext(){
-      var process_stack_idx = 0;
-      var error_stack_idx = 0;
+  function app(req, res, next) {
+    app.handler(req, res, next);
+  }
+  app.handler = function(req, res, next) {
+    var stack_idx = 0;
+    var stack = this.stack;
 
-      function next() {
-        console.log(arguments)
-        if (arguments.length == 1) {
-          // error process
-          error_stack_idx += 1;
-          return error_stack[error_stack_idx - 1](arguments[0], req, res, next);
-        }
-        if (arguments.length == 0) {
-          process_stack_idx += 1;
-          try {
-            return process_stack[process_stack_idx - 1](req, res, next);
-          } catch (e) {
-            next(e);
-          }
-        }
+    function finalHandler(err, req, res){
+      var hasError = Boolean(err);
+      if (!hasError){
+        res.statusCode = 404;
+        res.end('404 - Not Found');
+      } else {
+        res.statusCode = 500;
+        res.end('500 - Internal Error');
       }
-      return next;
     }
+    var done = next || finalhandler(req, res, {
+        env: env,
+        onerror: logerror
+      });
 
-    if (arguments.length == 2) {
-      var next = createNext();
-      next();
-    } else if (arguments.length == 3){
-      // call subapp
+    function next(err) {
+      stack_idx++;
+      var hasError = Boolean(err);
+      var handler = stack[stack_idx - 1];
 
+      if (!handler) {
+        // subapp's finalHandler will be called later
+        setImmediate(finalHandler, err, req, res)
+        return;
+      }
+      try {
+        if (hasError && handler.length == 4) {
+          // hasError and handler is function(err, req, res, next)
+          return handler(err, req, res, next);
+        } else if (!hasError && handler.length == 3) {
+          // has no error and handler is function(req, res, next)
+          return handler(req, res, next);
+        }
+      } catch (e) {
+        err = e;
+      }
+      next(err)
     }
+    next();
   }
 
   app.listen = function(){
@@ -40,29 +56,18 @@ function myexpress(){
     return server.listen.apply(server, arguments);
   }
 
-  function not_found_handler(req, res, next){
-    res.end("404 - Not Found")
-  }
 
-  function default_error_handler(err, req, res, next){
-    // return 500 by default
-    res.end('500 - Internal Error');
-  }
-  var error_stack = [default_error_handler]
-  var process_stack = [not_found_handler]
-
-  //app.stack = stack;
+  var stack = []
+  app.stack = stack;
 
   app.use = function(func){
-    if (func.length == 3){
-      process_stack[process_stack.length-1] = func
-      process_stack.push(not_found_handler)
-    }
-    if (func.length == 4){
-      error_stack[error_stack.length-1] = func
-      error_stack.push(default_error_handler)
-    }
-
+    //if (func instanceof app){
+    //  var subapp = func;
+    //  func = function(req, res, next){
+    //    subapp.handler(req, res, next)
+    //  }
+    //}
+    this.stack.push(func)
     // support chain call, like app.use(fn1).use(fn2)...
     return this;
   }
