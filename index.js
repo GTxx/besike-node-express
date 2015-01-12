@@ -61,12 +61,12 @@ function myexpress(){
   app.stack = stack;
 
   app.use = function(func){
-    //if (func instanceof app){
-    //  var subapp = func;
-    //  func = function(req, res, next){
-    //    subapp.handler(req, res, next)
-    //  }
-    //}
+    if ('function' == typeof func.handler){
+      var subapp = func;
+      func = function(req, res, next){
+        subapp.handler(req, res, next)
+      }
+    }
     this.stack.push(func)
     // support chain call, like app.use(fn1).use(fn2)...
     return this;
