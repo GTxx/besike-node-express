@@ -1,52 +1,47 @@
 var http = require('http');
+var finalhandler = require('finalhandler')
 
 
 function myexpress(){
 
-  function app(req, res, next) {
-    app.handler(req, res, next);
+  function app(req, res) {
+    app.handler(req, res);
   }
-  app.handler = function(req, res, next) {
+
+  app.handler = function(req, res, out_next) {
     var stack_idx = 0;
     var stack = this.stack;
-
-    function finalHandler(err, req, res){
-      var hasError = Boolean(err);
-      if (!hasError){
-        res.statusCode = 404;
-        res.end('404 - Not Found');
-      } else {
-        res.statusCode = 500;
-        res.end('500 - Internal Error');
-      }
-    }
-    var done = next || finalhandler(req, res, {
-        env: env,
-        onerror: logerror
-      });
 
     function next(err) {
       stack_idx++;
       var hasError = Boolean(err);
       var handler = stack[stack_idx - 1];
 
-      if (!handler) {
-        // subapp's finalHandler will be called later
-        setImmediate(finalHandler, err, req, res)
-        return;
-      }
-      try {
-        if (hasError && handler.length == 4) {
-          // hasError and handler is function(err, req, res, next)
-          return handler(err, req, res, next);
-        } else if (!hasError && handler.length == 3) {
-          // has no error and handler is function(req, res, next)
-          return handler(req, res, next);
+      if (!handler){
+        if(!out_next){
+          finalHandler(err, req, res)
+          return
+        } else {
+          // handler is a subapp,
+          out_next(err);
+          return
         }
-      } catch (e) {
-        err = e;
+      } else {
+        try {
+          if (hasError && isErrorHandler(handler)) {
+            // hasError and handler is function(err, req, res, next)
+            handler(err, req, res, next);
+            return
+          } else if (!hasError && !isErrorHandler(handler)) {
+            // has no error and handler is function(req, res, next)
+            handler(req, res, next);
+            return
+          }
+        } catch (e) {
+          err = e;
+        }
+        next(err)
       }
-      next(err)
     }
     next();
   }
@@ -63,6 +58,7 @@ function myexpress(){
   app.use = function(func){
     if ('function' == typeof func.handler){
       var subapp = func;
+      subapp.is_subapp = true;
       func = function(req, res, next){
         subapp.handler(req, res, next)
       }
@@ -73,6 +69,21 @@ function myexpress(){
   }
 
   return app;
+}
+
+function isErrorHandler(handler){
+  return handler.length == 4;
+}
+
+function finalHandler(err, req, res){
+  var hasError = Boolean(err);
+  if (!hasError){
+    res.statusCode = 404;
+    res.end('404 - Not Found');
+  } else {
+    res.statusCode = 500;
+    res.end('500 - Internal Error');
+  }
 }
 
 module.exports = myexpress;
