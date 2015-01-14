@@ -1,5 +1,5 @@
-var http = require('http');
-var finalhandler = require('finalhandler')
+var http = require('http')
+  , Layer = require('./lib/layer');
 
 
 function myexpress(){
@@ -15,9 +15,9 @@ function myexpress(){
     function next(err) {
       stack_idx++;
       var hasError = Boolean(err);
-      var handler = stack[stack_idx - 1];
+      var layer = stack[stack_idx-1]
 
-      if (!handler){
+      if (!layer){
         if(!out_next){
           finalHandler(err, req, res)
           return
@@ -27,18 +27,21 @@ function myexpress(){
           return
         }
       } else {
-        try {
-          if (hasError && isErrorHandler(handler)) {
-            // hasError and handler is function(err, req, res, next)
-            handler(err, req, res, next);
-            return
-          } else if (!hasError && !isErrorHandler(handler)) {
-            // has no error and handler is function(req, res, next)
-            handler(req, res, next);
-            return
+        var handle = layer.handle;
+        if (layer.match(req.url)) {
+          try {
+            if (hasError && isErrorHandle(handle)) {
+              // hasError and handler is function(err, req, res, next)
+              handle(err, req, res, next);
+              return
+            } else if (!hasError && !isErrorHandle(handle)) {
+              // has no error and handler is function(req, res, next)
+              handle(req, res, next);
+              return
+            }
+          } catch (e) {
+            err = e;
           }
-        } catch (e) {
-          err = e;
         }
         next(err)
       }
@@ -55,15 +58,19 @@ function myexpress(){
   var stack = []
   app.stack = stack;
 
-  app.use = function(func){
+  app.use = function(url, func){
+    if (typeof url != 'string') {
+      func = url;
+      url = '/'
+    }
     if ('function' == typeof func.handler){
       var subapp = func;
-      subapp.is_subapp = true;
       func = function(req, res, next){
         subapp.handler(req, res, next)
       }
     }
-    this.stack.push(func)
+    layer = new Layer(url, func)
+    this.stack.push(layer)
     // support chain call, like app.use(fn1).use(fn2)...
     return this;
   }
@@ -71,7 +78,7 @@ function myexpress(){
   return app;
 }
 
-function isErrorHandler(handler){
+function isErrorHandle(handler){
   return handler.length == 4;
 }
 
