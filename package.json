@@ -12,6 +12,7 @@
     "chai": "^1.10.0",
     "finalhandler": "^0.3.3",
     "mocha": "^2.1.0",
+    "path-to-regexp": "^0.1.2",
     "supertest": "^0.15.0"
   }
 }
