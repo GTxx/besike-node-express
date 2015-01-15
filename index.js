@@ -5,43 +5,70 @@ var http = require('http')
 function myexpress(){
 
   function app(req, res) {
-    app.handler(req, res);
+    app.handle(req, res);
   }
 
-  app.handler = function(req, res, out_next) {
+  app.handle = function(req, res, out_next) {
     var stack_idx = 0;
     var stack = this.stack;
-
+    req.params = {};
     function next(err) {
       stack_idx++;
       var hasError = Boolean(err);
       var layer = stack[stack_idx-1]
 
       if (!layer){
+        console.log('no layer left')
         if(!out_next){
+          console.log('not subapp')
           finalHandler(err, req, res)
           return
         } else {
-          // handler is a subapp,
+          // handle is a subapp,
           out_next(err);
           return
         }
       } else {
         var handle = layer.handle;
-        if (layer.match(req.url)) {
+        console.log(handle)
+        console.log('req.url is '+req.url)
+        var url_match = layer.match(req.url);
+        console.log('url_mathch is '+url_match)
+        if (url_match) {
+          if ('function' == typeof handle.handle) {
+            console.log('req.url: ' + req.url)
+            console.log('layer.url: '+layer.url)
+            req.url = req.url.split(layer.url)[1];
+            console.log('after strip, req.url: '+req.url)
+          }
+          req.params = url_match.params;
+          console.log('req.params is '+req.params)
           try {
             if (hasError && isErrorHandle(handle)) {
-              // hasError and handler is function(err, req, res, next)
+              // hasError and handle is function(err, req, res, next)
+              console.log('handle error')
               handle(err, req, res, next);
+              if ('function' == typeof layer.handle.handle) {
+                req.url = layer.url + req.url;
+                console.log('restore req.url: '+req.url)
+              }
               return
             } else if (!hasError && !isErrorHandle(handle)) {
-              // has no error and handler is function(req, res, next)
+              // has no error and handle is function(req, res, next)
+              console.log('handle normal')
+              console.log('--------------')
               handle(req, res, next);
+              if ('function' == typeof layer.handle.handle) {
+                req.url = layer.url + req.url;
+                console.log('restore req.url: '+req.url)
+              }
               return
             }
+
           } catch (e) {
             err = e;
           }
+
         }
         next(err)
       }
@@ -63,13 +90,13 @@ function myexpress(){
       func = url;
       url = '/'
     }
-    if ('function' == typeof func.handler){
-      var subapp = func;
-      func = function(req, res, next){
-        subapp.handler(req, res, next)
-      }
+    if ('function' == typeof func.handle){
+      //var subapp = func;
+      //func = function(req, res, next){
+      //  subapp.handle(req, res, next)
+      //}
     }
-    layer = new Layer(url, func)
+    var layer = new Layer(url, func)
     this.stack.push(layer)
     // support chain call, like app.use(fn1).use(fn2)...
     return this;
@@ -78,8 +105,8 @@ function myexpress(){
   return app;
 }
 
-function isErrorHandle(handler){
-  return handler.length == 4;
+function isErrorHandle(handle){
+  return handle.length == 4;
 }
 
 function finalHandler(err, req, res){
