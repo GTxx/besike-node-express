@@ -1,11 +1,11 @@
 var http = require('http')
-  , Layer = require('./lib/layer');
+  , Layer = require('./lib/layer')
+  , makeRoute = require('./lib/route');
 
 
 function myexpress(){
 
   function app(req, res) {
-    //app.handle(req, res);
     // support app(req, res, next)
     app.handle(req, res);
   }
@@ -30,7 +30,7 @@ function myexpress(){
           return
         }
       }
-        var handle = layer.handle;
+      var handle = layer.handle;
         var url_match = layer.match(req.url);
         if (url_match) {
           req.params = url_match.params;
@@ -64,7 +64,7 @@ function myexpress(){
   var stack = []
   app.stack = stack;
 
-  app.use = function(url, func){
+  app.use = function(url, func, options){
     if (typeof url != 'string') {
       func = url;
       url = '/'
@@ -77,10 +77,14 @@ function myexpress(){
         subapp.handle(req, res, next)
       }
     }
-    var layer = new Layer(url, func)
+    var layer = new Layer(url, func, options)
     this.stack.push(layer)
     // support chain call, like app.use(fn1).use(fn2)...
     return this;
+  }
+
+  app.get = function(path, handler){
+    app.use(path, makeRoute('get', handler), {'end': true});
   }
 
   return app;
