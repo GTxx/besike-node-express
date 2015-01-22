@@ -87,13 +87,20 @@ function myexpress(){
   //app.get = function(path, handler){
   //  app.use(path, makeRoute('get', handler), {'end': true});
   //}
+  methods.push('all');
   methods.forEach(function(method){
     app[method] = function(path, handler){
-      app.use(path, makeRoute(method, handler), {'end': true});
+      app.route(path)[method](handler);
+      //app.use(path, makeRoute(method, handler), {'end': true});
+      return app;
     }
   })
 
-
+  app.route = function(path){
+    var route = makeRoute();
+    app.use(path, route, {'end': true});
+    return route;
+  }
   return app;
 }
 
