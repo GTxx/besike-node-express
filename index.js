@@ -1,6 +1,7 @@
 var http = require('http')
   , Layer = require('./lib/layer')
-  , makeRoute = require('./lib/route');
+  , makeRoute = require('./lib/route')
+  , methods = require('methods');
 
 
 function myexpress(){
@@ -83,9 +84,15 @@ function myexpress(){
     return this;
   }
 
-  app.get = function(path, handler){
-    app.use(path, makeRoute('get', handler), {'end': true});
-  }
+  //app.get = function(path, handler){
+  //  app.use(path, makeRoute('get', handler), {'end': true});
+  //}
+  methods.forEach(function(method){
+    app[method] = function(path, handler){
+      app.use(path, makeRoute(method, handler), {'end': true});
+    }
+  })
+
 
   return app;
 }
