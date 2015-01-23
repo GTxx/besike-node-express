@@ -1,12 +1,15 @@
 var http = require('http')
   , Layer = require('./lib/layer')
   , makeRoute = require('./lib/route')
-  , methods = require('methods');
+  , methods = require('methods')
+  , reqProto = require('./lib/request')
+  , resProto = require('./lib/response');
 
 
 function myexpress(){
 
   function app(req, res) {
+    app.monkey_patch(req, res);
     // support app(req, res, next)
     app.handle(req, res);
   }
@@ -16,6 +19,8 @@ function myexpress(){
     var stack = app.stack;
 
     function next(err) {
+      req.app = app;
+      res.app = app;
       stack_idx++;
       var hasError = Boolean(err);
       var layer = stack[stack_idx-1]
@@ -100,6 +105,13 @@ function myexpress(){
     var route = makeRoute();
     app.use(path, route, {'end': true});
     return route;
+  }
+
+  app.monkey_patch = function(req, res){
+    req.__proto__ = reqProto;
+    res.__proto__ = resProto;
+    req.res = res;
+    res.req = req;
   }
   return app;
 }
