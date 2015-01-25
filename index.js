@@ -49,9 +49,7 @@ function myexpress(){
             } else if (!hasError && !isErrorHandle(handle)) {
               // has no error and handle is function(req, res, next)
               handle(req, res, next);
-
             }
-
           } catch (e) {
             err = e;
           }
@@ -126,6 +124,10 @@ function finalHandler(err, req, res){
     res.statusCode = 404;
     res.end('404 - Not Found');
   } else {
+    if (err.statusCode == 406){
+      res.statusCode = 406;
+      res.end('');
+    }
     res.statusCode = 500;
     res.end('500 - Internal Error');
   }
